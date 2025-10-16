@@ -1,42 +1,71 @@
-digraph SepetAkisi {
-    rankdir=LR;
+digraph DersKayitGenişletilmis {
+    rankdir=TB;
     node [shape=rectangle, style=rounded];
 
-    // Temel işlemler
-    SepetOlustur -> Sepet [label="yeni sepet"];
+    Start [label="Başla / Giriş Yap"];
+    Menu [label="İşlem Menüsü\n(EKLE / SİL / LİSTE / BİTİR)"];
 
-    SepeteEkle -> StokKontrolEt;
-    SepeteEkle -> StokRezervEt;
-    SepeteEkle -> KalemBul;
-    SepeteEkle -> ToplamlariGuncelle;
+    // EKLE akışı
+    Ekle [label="EKLE İşlemi"];
+    Onkosul [label="Önkoşullar Tam mı?", shape=diamond];
+    Coreq [label="Eş-zorunlu ders de seçildi mi?", shape=diamond];
+    SaatCakis [label="Saat Çakışması Var mı?", shape=diamond];
+    Kontenjan [label="Kontenjan Uygun mu?", shape=diamond];
+    Kredi [label="Kredi Uygun mu?", shape=diamond];
 
-    SepettenCikar -> KalemBul;
-    SepettenCikar -> StokRezervIptal;
-    SepettenCikar -> ToplamlariGuncelle;
+    KayitOK [label="Kayıt Başarılı", shape=oval];
+    Bekleme [label="Bekleme Listesi\n(öncelikli kuyruk)", shape=oval];
+    KrediFail [label="Kredi Sınırı Aşıldı", shape=oval];
 
-    AdetGuncelle -> KalemBul;
-    AdetGuncelle -> StokKontrolEt;
-    AdetGuncelle -> ToplamlariGuncelle;
+    // SİL akışı
+    Sil [label="SİL İşlemi"];
+    SilOK [label="Ders Silindi", shape=oval];
+    BekleyenYukselt [label="Bekleyenleri Yükselt\n(öncelik + kontrol)"];
 
-    KuponUygula -> ToplamlariGuncelle;
+    // LİSTE akışı
+    Liste [label="LİSTE İşlemi"];
+    Goster [label="Mevcut Dersler ve Krediler", shape=oval];
 
-    ToplamlariGuncelle -> AraToplamHesapla;
-    ToplamlariGuncelle -> IndirimHesapla;
-    ToplamlariGuncelle -> KargoHesapla;
-    ToplamlariGuncelle -> VergiHesapla;
+    // BİTİR
+    Bitir [label="BİTİR"];
+    Odeme [label="Ödeme Gerekli mi?", shape=diamond];
+    OdemeOK [label="Ödeme Başarılı", shape=oval];
+    OdemeFail [label="Ödeme Başarısız", shape=oval];
+    End [label="Kayıt Süreci Tamamlandı", shape=oval];
 
-    // Ödeme akışı
-    OdemeBaslat -> StokYetersiz;
-    OdemeBaslat -> ToplamlariGuncelle;
-    OdemeBaslat -> OdemeSaglayiciIsle;
-    OdemeBaslat -> SiparisOlustur;
-    OdemeBaslat -> SepetiTemizle;
-    OdemeBaslat -> StokRezervIptal;
+    // Ana akış
+    Start -> Menu;
+    Menu -> Ekle [label="EKLE"];
+    Menu -> Sil [label="SİL"];
+    Menu -> Liste [label="LİSTE"];
+    Menu -> Bitir [label="BİTİR"];
 
-    SiparisOlustur -> StokDus;
+    Ekle -> Onkosul;
+    Onkosul -> Coreq [label="EVET"];
+    Onkosul -> Menu [label="HAYIR"];
 
-    SepetiTemizle -> ToplamlariGuncelle;
+    Coreq -> SaatCakis [label="EVET"];
+    Coreq -> Menu [label="HAYIR"];
 
-    // Görselleştirme
-    SepetiGoruntule;
+    SaatCakis -> Kontenjan [label="HAYIR"];
+    SaatCakis -> Menu [label="EVET"];
+
+    Kontenjan -> Kredi [label="EVET"];
+    Kontenjan -> Bekleme [label="HAYIR"];
+
+    Kredi -> KayitOK [label="EVET"];
+    Kredi -> KrediFail [label="HAYIR"];
+
+    KayitOK -> Menu;
+    Bekleme -> Menu;
+    KrediFail -> Menu;
+
+    Sil -> SilOK -> BekleyenYukselt -> Menu;
+    Liste -> Goster -> Menu;
+
+    Bitir -> Odeme;
+    Odeme -> OdemeOK [label="EVET"];
+    Odeme -> OdemeFail [label="HAYIR"];
+    OdemeOK -> End;
+    OdemeFail -> End;
 }
