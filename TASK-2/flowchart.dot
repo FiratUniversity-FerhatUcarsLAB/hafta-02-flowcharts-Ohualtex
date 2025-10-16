@@ -1,1 +1,39 @@
+digraph SepetAkisi {
+    rankdir=LR;
+    node [shape=rectangle, style=rounded];
+
+    // Veri yapıları ve başlangıç fonksiyonu
+    SepetOlustur -> Sepet [label="yeni sepet döndürür"];
+
+    // Sepete ekleme ve güncelleme işlemleri
+    SepeteEkle -> KalemBul;
+    SepeteEkle -> ToplamlariGuncelle;
+
+    AdetGuncelle -> KalemBul;
+    AdetGuncelle -> ToplamlariGuncelle;
+
+    SepettenCikar -> KalemBul;
+    SepettenCikar -> ToplamlariGuncelle;
+
+    KuponUygula -> ToplamlariGuncelle;
+
+    // Toplamları güncelleme alt çağrıları
+    ToplamlariGuncelle -> AraToplamHesapla;
+    ToplamlariGuncelle -> IndirimHesapla;
+    ToplamlariGuncelle -> KargoHesapla;
+    ToplamlariGuncelle -> VergiHesapla;
+
+    // Ödeme akışı
+    OdemeBaslat -> StokYetersiz;
+    OdemeBaslat -> ToplamlariGuncelle;
+    OdemeBaslat -> OdemeSaglayiciIsle;
+    OdemeBaslat -> SiparisOlustur;
+    OdemeBaslat -> SepetiTemizle;
+
+    // Sepeti temizleme
+    SepetiTemizle -> ToplamlariGuncelle;
+
+    // Görüntüleme fonksiyonu (çağrı ilişkisi olmadığı için izole)
+    SepetiGoruntule;
+}
 
