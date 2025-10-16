@@ -1,1 +1,26 @@
+digraph HospitalAppointmentSystem {
+    rankdir=LR;
+    node [shape=box, style=rounded];
+
+    Start [shape=circle, label="Başlangıç"];
+    End   [shape=doublecircle, label="Bitiş"];
+
+    RegisterPatient   [label="Hasta Kaydı"];
+    Login             [label="Giriş"];
+    SearchDoctors     [label="Doktor Ara"];
+    ListSlots         [label="Uygun Slotları Listele"];
+    CreateAppointment [label="Randevu Oluştur"];
+    CancelAppointment [label="Randevu İptal"];
+    Reschedule        [label="Randevu Yeniden Planla"];
+    CheckIn           [label="Check-in"];
+    MarkRealized      [label="Gerçekleşti Olarak İşaretle"];
+
+    // Akış
+    Start -> RegisterPatient -> Login -> SearchDoctors -> ListSlots -> CreateAppointment;
+    CreateAppointment -> CancelAppointment;
+    CreateAppointment -> Reschedule;
+    CreateAppointment -> CheckIn -> MarkRealized -> End;
+    CancelAppointment -> End;
+    Reschedule -> End;
+}
 
