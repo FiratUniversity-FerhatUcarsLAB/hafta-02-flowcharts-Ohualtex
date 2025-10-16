@@ -1,1 +1,318 @@
+Üniversite Ders Kayıt yalın pseudocode oluştur
+Aşağıda “yalın” ama işlevsel bir Üniversite Ders Kayıt akışı için pseudocode var. Giriş, önkoşul, çakışma, kontenjan, AKTS/kredi limiti, bekleme listesi ve ekle/çıkar dönemini kapsar.
+// =======================================
+// ÜNİVERSİTE DERS KAYIT SİSTEMİ (PSEUDOCODE)
+// =======================================
+
+// --- Veri Yapıları (özet) ---
+STRUCT Öğrenci {
+  id, ad, sınıf, maxKredi, mevcutKredi
+  alınanDersler : LIST<DersKaydı>
+  program : Program // bölüm/müfredat
+  engeller : LIST<Engel> // (borç, disiplin vb.)
+  öncelikSeviyesi // (örn: son sınıf > 3. sınıf > ...)
+}
+
+STRUCT Ders {
+  kod, ad, kredi, kapasite, dönem
+  önkoşullar : LIST<DersKod>
+  saatBlokları : LIST<ZamanAralığı>
+  kayıtlıÖğrenciSayısı
+  beklemeListesi : QUEUE<ÖğrenciID>
+}
+
+STRUCT DersKaydı { dersKod, durum } // durum: "KAYITLI", "BEKLEME", "SİLİNDİ"
+
+STRUCT ZamanAralığı { gün, başlangıç, bitiş } // örn: Çar 10:00-12:00
+
+// --- Yardımcı Fonksiyonlar ---
+FUNCTION GirişYap(kullanıcı, parola) -> Öğrenci?:
+  IF KimlikDoğrula(kullanıcı, parola) THEN
+    RETURN ÖğrenciBilgisiGetir(kullanıcı)
+  ELSE RETURN NULL
+
+FUNCTION EngelVarMı(öğrenci) -> BOOL:
+  RETURN (öğrenci.engeller NOT EMPTY)
+
+FUNCTION ÖnkoşullarTam(öğrenci, ders) -> BOOL:
+  FOR each p IN ders.önkoşullar:
+    IF p NOT IN TamamlananDersler(öğrenci) THEN RETURN FALSE
+  RETURN TRUE
+
+FUNCTION SaatÇakışıyorMu(öğrenci, ders) -> BOOL:
+  FOR each k IN öğrenci.alınanDersler WHERE k.durum == "KAYITLI":
+    d2 = DersGetir(k.dersKod)
+    IF HerhangiÇakışır(ders.saatBlokları, d2.saatBlokları) THEN RETURN TRUE
+  RETURN FALSE
+
+FUNCTION KrediUygunMu(öğrenci, ders) -> BOOL:
+  RETURN (öğrenci.mevcutKredi + ders.kredi) <= öğrenci.maxKredi
+
+FUNCTION KontenjanVarMı(ders) -> BOOL:
+  RETURN ders.kayıtlıÖğrenciSayısı < ders.kapasite
+
+FUNCTION KaydaEkle(öğrenci, ders):
+  öğrenci.alınanDersler.APPEND({dersKod: ders.kod, durum:"KAYITLI"})
+  ders.kayıtlıÖğrenciSayısı += 1
+  öğrenci.mevcutKredi += ders.kredi
+  Güncelle(öğrenci, ders)
+
+FUNCTION BeklemeListesineEkle(öğrenci, ders):
+  öğrenci.alınanDersler.APPEND({dersKod: ders.kod, durum:"BEKLEME"})
+  ders.beklemeListesi.ENQUEUE(öğrenci.id)
+  Güncelle(öğrenci, ders)
+
+FUNCTION KayıttanSil(öğrenci, ders):
+  Kayıt = KayıtBul(öğrenci, ders.kod)
+  IF Kayıt.durum == "KAYITLI":
+    ders.kayıtlıÖğrenciSayısı -= 1
+    öğrenci.mevcutKredi -= ders.kredi
+  Kayıt.durum = "SİLİNDİ"
+  Güncelle(öğrenci, ders)
+
+FUNCTION BekleyenleriYükselt(ders):
+  WHILE KontenjanVarMı(ders) AND ders.beklemeListesi NOT EMPTY:
+    oid = ders.beklemeListesi.DEQUEUE()
+    o = ÖğrenciGetir(oid)
+    kaydı = KayıtBul(o, ders.kod)
+    IF kaydı != NULL AND kaydı.durum == "BEKLEME" AND KrediUygunMu(o, ders) AND NOT SaatÇakışıyorMu(o, ders):
+      kaydı.durum = "KAYITLI"
+      ders.kayıtlıÖğrenciSayısı += 1
+      o.mevcutKredi += ders.kredi
+      Güncelle(o, ders)
+
+// --- Ana Akış ---
+FUNCTION DersKaydıAkışı():
+  öğrenci = GirişYap(inputUser, inputPass)
+  IF öğrenci == NULL: PRINT "Giriş hatalı"; EXIT
+  IF EngelVarMı(öğrenci): PRINT "Kayıt engeli var"; EXIT
+
+  PRINT "Ders ekle/çıkar işlemlerini seçin"
+  REPEAT
+    işlem = MenüSeçimi() // "EKLE", "SİL", "LİSTE", "BİTİR"
+
+    IF işlem == "EKLE":
+      dersKod = KullanıcıdanDersKodAl()
+      ders = DersGetir(dersKod)
+      IF ders == NULL: PRINT "Ders bulunamadı"; CONTINUE
+      IF NOT ÖnkoşullarTam(öğrenci, ders): PRINT "Önkoşul eksik"; CONTINUE
+      IF SaatÇakışıyorMu(öğrenci, ders): PRINT "Saat çakışması"; CONTINUE
+
+      IF KontenjanVarMı(ders) AND KrediUygunMu(öğrenci, ders):
+        KaydaEkle(öğrenci, ders)
+        PRINT "Kayıt başarılı:", ders.kod
+      ELSE
+        // kontenjan dolu veya kredi sınırı aşılıyor
+        IF NOT KontenjanVarMı(ders): 
+          BeklemeListesineEkle(öğrenci, ders)
+          PRINT "Bekleme listesine alındınız:", ders.kod
+        ELSE
+          PRINT "Kredi sınırı nedeniyle eklenemedi"
+
+    ELSE IF işlem == "SİL":
+      dersKod = KullanıcıdanDersKodAl()
+      ders = DersGetir(dersKod)
+      IF ders == NULL: PRINT "Ders bulunamadı"; CONTINUE
+      KayıttanSil(öğrenci, ders)
+      PRINT "Ders silindi:", ders.kod
+      BekleyenleriYükselt(ders)
+
+    ELSE IF işlem == "LİSTE":
+      PRINT "Mevcut durum:"
+      FOR each k IN öğrenci.alınanDersler:
+        PRINT k.dersKod, k.durum
+      PRINT "Toplam kredi:", öğrenci.mevcutKredi, "/", öğrenci.maxKredi
+
+  UNTIL işlem == "BİTİR"
+
+  // İsteğe bağlı: mali onay/adım
+  IF ÜcretGerekliMi(öğrenci):
+    IF ÖdemeAl(öğrenci) == FALSE:
+      PRINT "Ödeme başarısız, kayıtlar askıda"
+      EXIT
+
+  PRINT "Kayıt süreci tamamlandı"
+  ÇıktıAl(öğrenci.alınanDersler)
+
+// --- Zamanlanmış İş: Bekleme Listesi Terfileri ---
+CRON_EACH_5_MIN:
+  FOR each ders IN AktifDersler():
+    BekleyenleriYükselt(ders)
+
+
+İstersen bu akışı daha da yalınlaştırıp (ör. bekleme listesi olmadan), ya da daha ayrıntılı hâle getirip (örn. danışman onayı, çakışma toleransı, laboratuvar/teori eş-zorunluluğu) bölüm kurallarına göre uyarlayabilirim.
+
+dot diline çevir
+
+Güzel, elimizdeki ders kayıt pseudocode’unu DOT diline çevirelim.
+DOT (Graphviz) bir akış diyagramı çizmek için kullanılıyor; yani işlem adımlarını düğümler (node), kararları elmas (diamond), akışları oklarla gösteriyoruz. Aşağıda temel akışı çıkardım: giriş → kontrol → işlem seçimi → ekle/sil/liste → bitir. Bekleme listesi, önkoşul, kontenjan gibi karar noktalarını da koydum.
+
+digraph DersKayit {
+    rankdir=TB;
+    node [shape=rectangle, style=rounded];
+
+    Start [label="Başla / Giriş Yap"];
+    AuthFail [label="Giriş Hatalı", shape=oval];
+    Engelli [label="Kayıt Engeli Var", shape=oval];
+    Menu [label="İşlem Menüsü\n(EKLE / SİL / LİSTE / BİTİR)"];
+
+    // Ekle Akışı
+    Ekle [label="EKLE İşlemi"];
+    Onkosul [label="Önkoşullar Tam mı?", shape=diamond];
+    SaatCakis [label="Saat Çakışması Var mı?", shape=diamond];
+    Kontenjan [label="Kontenjan Uygun mu?", shape=diamond];
+    Kredi [label="Kredi Uygun mu?", shape=diamond];
+    KayitOK [label="Kayıt Başarılı", shape=oval];
+    Bekleme [label="Bekleme Listesi", shape=oval];
+    KrediFail [label="Kredi Sınırı Aşıldı", shape=oval];
+
+    // Sil Akışı
+    Sil [label="SİL İşlemi"];
+    SilOK [label="Ders Silindi", shape=oval];
+    BekleyenYukselt [label="Bekleyenleri Yükselt"];
+
+    // Liste Akışı
+    Liste [label="LİSTE İşlemi"];
+    Goster [label="Mevcut Dersler ve Krediler", shape=oval];
+
+    // Bitir
+    Bitir [label="BİTİR"];
+    Odeme [label="Ödeme Gerekli mi?", shape=diamond];
+    OdemeOK [label="Ödeme Başarılı", shape=oval];
+    OdemeFail [label="Ödeme Başarısız", shape=oval];
+    End [label="Kayıt Süreci Tamamlandı", shape=oval];
+
+    // Akış
+    Start -> Menu;
+    Start -> AuthFail [label="giriş hatalı"];
+    Start -> Engelli [label="engel var"];
+
+    Menu -> Ekle [label="EKLE"];
+    Menu -> Sil [label="SİL"];
+    Menu -> Liste [label="LİSTE"];
+    Menu -> Bitir [label="BİTİR"];
+
+    Ekle -> Onkosul;
+    Onkosul -> SaatCakis [label="EVET"];
+    Onkosul -> Menu [label="HAYIR"];
+    SaatCakis -> Kontenjan [label="HAYIR"];
+    SaatCakis -> Menu [label="EVET"];
+    Kontenjan -> Kredi [label="EVET"];
+    Kontenjan -> Bekleme [label="HAYIR"];
+    Kredi -> KayitOK [label="EVET"];
+    Kredi -> KrediFail [label="HAYIR"];
+    KayitOK -> Menu;
+    Bekleme -> Menu;
+    KrediFail -> Menu;
+
+    Sil -> SilOK -> BekleyenYukselt -> Menu;
+
+    Liste -> Goster -> Menu;
+
+    Bitir -> Odeme;
+    Odeme -> OdemeOK [label="EVET"];
+    Odeme -> OdemeFail [label="HAYIR"];
+    OdemeOK -> End;
+    OdemeFail -> End;
+}
+
+Bu DOT grafını Graphviz ile çalıştırırsan sana klasik ders kayıt akış diyagramını verecek. İstersen ben sana görselini de üretip gösterebilirim. Görsel ister misin?
+
+Mantığını açıkla.
+
+6s boyunca düşündüm
+
+Kısaca: DOT diyagramı, ders kayıt akışını bir “menü döngüsü” etrafında kuruyor ve her işlem (EKLE/SİL/LİSTE/BİTİR) kendi küçük karar ağacına ayrılıyor. Mantık adım adım şöyle:
+
+1) Giriş ve engel kontrolü
+
+Başla → Giriş Yap: Kimlik doğrulama.
+
+Engel var mı?: Mali/idarî engel varsa akış sonlanır. Bu iki kontrol, “hızlı başarısızlık” için en başta.
+
+2) Ana döngü: Menü
+
+Menü (EKLE / SİL / LİSTE / BİTİR): Kullanıcı bitir diyene kadar döner. Böylece çoklu ekleme/silme tek oturumda yapılır.
+
+3) EKLE akışı (karar zinciri)
+
+Bir dersi güvenli şekilde eklemek için şu sırada kontroller var:
+
+Önkoşullar Tam mı? (gerekli dersler bitmiş mi?)
+
+Hayır: menüye geri.
+
+Saat Çakışması Var mı? (mevcut kayıtlı derslerle zaman kesişimi)
+
+Evet: menüye geri.
+
+Kontenjan Uygun mu?
+
+Evet ise kredi kontrolüne geçilir.
+
+Hayır ise Bekleme Listesine alınır (durum = “BEKLEME”).
+
+Kredi Uygun mu? (mevcut + ders kredi ≤ maxKredi)
+
+Evet: Kayıt Başarılı (durum = “KAYITLI”, kredi ve sayılar güncellenir).
+
+Hayır: Kredi Sınırı Aşıldı (menüye geri).
+
+Bu sıra, “ucuzdan pahalıya” kontrol mantığıdır: En olası/ucuz hatalar (önkoşul, çakışma) başta; veri mutasyonları (kredi/kapasite artışı) en sonda.
+
+4) SİL akışı
+
+Ders Silindi: Kayıttan düşer, kredi/kapasite geri alınır.
+
+Bekleyenleri Yükselt: Dersin bekleme listesinde sıradaki kişiler, tekrar kredi ve çakışma kontrolünden geçerek otomatik “KAYITLI”ya terfi eder.
+Bu, “kapasite açıldığında adaletli ve güvenli yükseltme” sağlar (FIFO + kuralları hâlâ sağlama).
+
+5) LİSTE akışı
+
+Mevcut Dersler ve Krediler: Durumların (KAYITLI/BEKLEME) ve toplam kredinin görünmesi. Kullanıcı geri bildirim döngüsü.
+
+6) BİTİR ve ödeme
+
+Ödeme Gerekli mi?
+
+Evet: Ödeme Başarılı → Tamamlandı
+
+Hayır / Başarısız: yine Tamamlandı ama not: başarısız ödemede kayıtlar “askıda” kabul edilebilir (uygulama kuralına bağlı). Bu esneklik diyagramda iki ayrı son düğümüyle belirtilmiş.
+
+Akışın tasarım ilkeleri (neden böyle?)
+
+Durumsal doğruluk (invariants):
+
+mevcutKredi ≤ maxKredi
+
+kayıtlıÖğrenciSayısı ≤ kapasite
+
+Zaman çakışması olan iki ders aynı anda “KAYITLI” olamaz.
+Bu invariant’lar, sadece “KAYITLI” durumunda güncellenir; “BEKLEME” krediye yazılmaz.
+
+Yan etkileri en sonda yap: En başta sadece kontrol; başarılı patikada en sonda state değiştir. Geri dönüşü kolaylaştırır.
+
+Adalet ve güvenlik: Bekleme listesi FIFO; ama terfi tekrar kontrol ile yapılır (bu arada kullanıcı başka ders eklemiş ve kredi dolmuş olabilir).
+
+Atomiklik: Silme + BekleyenleriYükselt ardışık ama tek işlem bloğu gibi düşünülmeli; böylece kapasite sızıntısı olmaz.
+
+Tekrarlanabilirlik: Aynı dersi iki kez eklemeyi engelleme ve iptal/sil işlemlerinin idempotent çalışması (aynı sonucu vermesi) gerekir; bu uygulama ayrıntısı diyagramın “KayıtBul” mantığında yer alır.
+
+Tipik senaryo (mikro simülasyon)
+
+Öğrenci CS101 eklemek ister → Önkoşul tamam, çakışma yok.
+
+Kontenjan dolu → Bekleme listesine girer (kredi artmaz).
+
+Başkası CS101’i siler → Kapasite artar → BekleyenleriYükselt çalışır → Öğrenci tekrar kredi/çakışma kontrolünden geçer → uygunsa otomatik “KAYITLI”.
+
+Kenar durumları (kısa kısa)
+
+Eş-zorunluluk (corequisite): Önkoşul kontrolüne ek bir kural olarak aynı anda A+B alma zorunluluğu konabilir.
+
+Öncelik: Son sınıfa öncelik vermek için bekleme listesini çoklu kuyruk veya öncelik kuyruğu yap.
+
+Zaman yarışları: Paralel isteklerde kapasiteyi aşmamak için veritabanında satır kilidi (row lock) veya atomik sayaç gerekir.
+
+Bu iskelet, gerçek sisteme geçtiğinde danışman onayı, dil/ingilizce kısıtları, lab-teori eşleşmesi gibi yerel kurallarla kolayca genişletilir.
 
