@@ -1,0 +1,199 @@
+ATM Para Çekme Sistemi yalın pseudecode oluştur.
+
+Aşağıda ATM para çekme işleminin adım adım yalın bir pseudocode tanımı verilmiştir. Pseudocode, kullanıcının kart takması, PIN doğrulaması, işlem seçimi, tutar kontrolü ve para çekme gibi temel adımları içerir.
+
+Prosedür ATMParaCekme
+    // 1. Kartı algılayana kadar bekle
+    EkranaYaz("Lütfen kartınızı yerleştiriniz.")
+    kartOkundu = KartBekle()
+    Eğer kartOkundu == Yanlış ise
+        EkranaYaz("Geçersiz kart. Kart iade ediliyor.")
+        KartIadeEt()
+        Dön // program sonlanır
+    SonEğer
+
+    // 2. PIN doğrulama (en fazla 3 deneme)
+    deneme = 0
+    dogruPIN = False
+    PINKodu = KarttanPINAl()  // kartın gerçek PIN'i
+    Döngü deneme < 3 ve dogruPIN == False iken
+        EkranaYaz("PIN kodunu giriniz:")
+        girilenPIN = PINOku()
+        Eğer girilenPIN == PINKodu ise
+            dogruPIN = True
+        Aksi
+            deneme = deneme + 1
+            Eğer deneme < 3 ise
+                EkranaYaz("Yanlış PIN, tekrar deneyiniz.")
+            SonEğer
+        SonEğer
+    DöngüSonu
+    Eğer dogruPIN == False ise
+        EkranaYaz("PIN üç kez hatalı. Kart bloke edildi.")
+        KartBlokeEt()
+        Dön
+    SonEğer
+
+    // 3. İşlem menüsü
+    MenüYaz("1- Bakiye Sorgulama", "2- Para Çekme", "3- Çıkış")
+    seçim = MenüSeç()
+
+    Eğer seçim == 1 ise
+        bakiye = HesapBakiyesiOku()
+        EkranaYaz("Mevcut bakiye: " + bakiye)
+        KartIadeEt()
+        Dön
+    SonEğer
+
+    Eğer seçim == 2 ise
+        // 4. Çekilecek tutarı al ve kontrol et
+        tekrar:
+        EkranaYaz("Çekmek istediğiniz tutarı giriniz:")
+        tutar = TutarOku()
+
+        Eğer tutar <= 0 ise
+            EkranaYaz("Hatalı tutar, lütfen tekrar giriniz.")
+            Git tekrar
+        SonEğer
+        Eğer (tutar mod 10) != 0 ise   // 10'un katı değilse mesaj ver:contentReference[oaicite:0]{index=0}
+            EkranaYaz("Tutar 10'un katı olmalıdır.")
+            Git tekrar
+        SonEğer
+
+        bakiye = HesapBakiyesiOku()
+        Eğer tutar > bakiye ise
+            EkranaYaz("Yetersiz bakiye.")
+            Git tekrar
+        SonEğer
+
+        atmKasa = ATMBakiyesiOku()
+        Eğer tutar > atmKasa ise
+            EkranaYaz("ATM'de yeterli nakit yok.")
+            Git tekrar
+        SonEğer
+
+        // 5. Para çekme ve güncelleme
+        HesapBakiyesiGuncelle(bakiye - tutar)
+        ATMBakiyesiGuncelle(atmKasa - tutar)
+        NakitVer(tutar)
+        FisBas(tutar, bakiye - tutar)  // istenirse fiş bas
+
+        EkranaYaz("İşlem tamamlandı. Lütfen paranızı ve kartınızı alınız.")
+        KartIadeEt()
+        Dön
+    SonEğer
+
+    // 6. Çıkış seçilirse
+    Eğer seçim == 3 ise
+        KartIadeEt()
+        Dön
+    SonEğer
+
+SonProsedür
+
+Bu pseudocode, kullanıcı kartını taktıktan sonra PIN doğrulaması yapar; üç kez yanlış PIN girilirse kart bloke edilir
+brainly.com
+. Doğru PIN girildiğinde menüden “Para Çekme” seçeneği ile çekilecek tutar istenir, tutarın 10 TL’nin katı olup olmadığı kontrol edilir ve hesap bakiyesi ile ATM kasasındaki bakiye yetersizse kullanıcıya bildirilir
+101computing.net
+. Şartlar sağlandığında hem kullanıcının hesabı hem de ATM’nin kasası güncellenir ve nakit para verilir; işlem sonunda kart iade edilir
+brainly.com
+.
+
+Dot diline çevir.
+
+İşte önceki ATM para çekme pseudocode’unun DOT dili ile gösterimi. Bu grafik, başlatma, PIN doğrulama, menü seçimi ve para çekme adımlarını yönlü bir akış olarak ifade eder:
+
+digraph ATM {
+    rankdir=LR;
+    node [shape=rectangle, fontsize=10];
+
+    Start [label="Başlat\nKartınızı yerleştiriniz"];
+    EnterPIN [label="PIN gir"];
+    VerifyPIN [label="PIN doğru mu?", shape=diamond];
+    AttemptCheck [label="3. deneme?", shape=diamond];
+    BlockCard [label="Kart bloke\nSonlandır"];
+    ShowMenu [label="Menü\n1: Bakiye Sorgulama\n2: Para Çekme\n3: Çıkış"];
+    BalanceInquiry [label="Bakiye sorgulama\nBakiye göster"];
+    WithdrawOption [label="Para çekme seçildi"];
+    Exit [label="Çıkış seçildi\nKart iade"];
+    AskAmount [label="Tutar gir"];
+    ValidateAmount [label="Tutar >0 ve 10'un katı mı?", shape=diamond];
+    CheckBalance [label="Hesap bakiyesi yeterli mi?", shape=diamond];
+    CheckATM [label="ATM bakiyesi yeterli mi?", shape=diamond];
+    InsufficientBalance [label="Yetersiz bakiye\nTekrar tutar gir"];
+    InsufficientATM [label="ATM'de nakit yok\nTekrar tutar gir"];
+    Dispense [label="Bakiye ve ATM güncelle\nPara ve fiş ver"];
+    End [label="İşlem tamamlandı"];
+
+    // bağlantılar
+    Start -> EnterPIN;
+    EnterPIN -> VerifyPIN;
+    VerifyPIN -> ShowMenu [label="Evet"];
+    VerifyPIN -> AttemptCheck [label="Hayır"];
+    AttemptCheck -> EnterPIN [label="Hayır"];
+    AttemptCheck -> BlockCard [label="Evet"];
+    BlockCard -> End;
+
+    ShowMenu -> BalanceInquiry [label="1"];
+    ShowMenu -> WithdrawOption [label="2"];
+    ShowMenu -> Exit [label="3"];
+
+    BalanceInquiry -> End [label="Kart iade"];
+    Exit -> End;
+
+    WithdrawOption -> AskAmount;
+    AskAmount -> ValidateAmount;
+    ValidateAmount -> AskAmount [label="Hayır"];
+    ValidateAmount -> CheckBalance [label="Evet"];
+    CheckBalance -> InsufficientBalance [label="Hayır"];
+    InsufficientBalance -> AskAmount;
+    CheckBalance -> CheckATM [label="Evet"];
+    CheckATM -> InsufficientATM [label="Hayır"];
+    InsufficientATM -> AskAmount;
+    CheckATM -> Dispense [label="Evet"];
+    Dispense -> End;
+}
+
+sistemin kısa açıklamasını yap.
+
+ATM para çekme sistemi kısaca şöyle çalışır:
+
+Kart ve PIN Doğrulama
+Kullanıcı kartını yerleştirir. Sistem kartın geçerliliğini kontrol eder. Ardından PIN kodu istenir. PIN üç kez yanlış girilirse kart bloke edilir ve işlem sonlanır.
+
+İşlem Seçimi (Menü)
+Doğru PIN girildiyse kullanıcıya menü sunulur:
+
+Bakiye sorgulama
+
+Para çekme
+
+Çıkış
+
+Para Çekme Adımı
+Kullanıcı para çekme seçeneğini seçerse çekmek istediği tutarı girer. Sistem şunları kontrol eder:
+
+Tutarın pozitif olması ve 10’un katı olması
+
+Hesap bakiyesinin yeterli olması
+
+ATM’de yeterli nakit bulunması
+
+Eğer kontroller başarısız olursa kullanıcıdan yeni bir tutar girmesi istenir.
+
+İşlemin Tamamlanması
+Şartlar sağlanıyorsa:
+
+Hesap bakiyesi güncellenir
+
+ATM’nin kasasındaki nakit azaltılır
+
+İstenen tutar kullanıcıya verilir
+
+Fiş basılır (opsiyonel)
+
+Kart iade edilir ve işlem sonlandırılır
+
+Özetle: Sistem, kullanıcıyı kart takma → PIN doğrulama → menü seçimi → tutar girme → bakiye/ATM kontrolü → para çekme → kart iadesi adımlarından geçirir. Hem güvenliği (PIN ve deneme sınırı) hem de işlem geçerliliğini (tutar, bakiye, ATM nakdi) kontrol ederek güvenli bir para çekme işlemi sağlar.
+
+İstersen bu süreci sana bir akış diyagramı resmi olarak da görselleştirebilirim. İstiyor musun?
