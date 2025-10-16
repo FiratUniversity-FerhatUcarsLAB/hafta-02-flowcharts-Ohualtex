@@ -1,1 +1,40 @@
+digraph SmartHomeSecurityFSM {
+    rankdir=LR;
+    node [shape=ellipse, fontsize=12, fontname="Arial"];
+
+    DISARMED     [label="DISARMED\n(Sistem Kapalı)"];
+    EXIT_DELAY   [label="EXIT_DELAY\n(Çıkış Gecikmesi)"];
+    ARMED_STAY   [label="ARMED_STAY\n(Kurulu - Evde)"];
+    ARMED_AWAY   [label="ARMED_AWAY\n(Kurulu - Ev Dışı)"];
+    ENTRY_DELAY  [label="ENTRY_DELAY\n(Giriş Gecikmesi)"];
+    ALARM        [label="ALARM\n(Siren Çalışıyor)"];
+
+    // Başlangıç
+    start [shape=point];
+    start -> DISARMED;
+
+    // Kurma
+    DISARMED -> EXIT_DELAY [label="ArmStay() / ArmAway()"];
+    EXIT_DELAY -> ARMED_STAY [label="Süre bitti (Stay)"];
+    EXIT_DELAY -> ARMED_AWAY [label="Süre bitti (Away)"];
+
+    // Sensör tetiklenmesi
+    ARMED_STAY -> ENTRY_DELAY [label="EntryExit sensör"];
+    ARMED_AWAY -> ENTRY_DELAY [label="EntryExit sensör"];
+    ARMED_STAY -> ALARM       [label="Instant/Tamper sensör"];
+    ARMED_AWAY -> ALARM       [label="Instant/Tamper sensör"];
+
+    // Giriş gecikmesi
+    ENTRY_DELAY -> ALARM      [label="Süre bitti"];
+    ENTRY_DELAY -> DISARMED   [label="Geçerli PIN"];
+
+    // Alarm
+    ALARM -> DISARMED   [label="PIN ile kapatma"];
+    ALARM -> ARMED_STAY [label="Süre doldu (önce Stay)"];
+    ALARM -> ARMED_AWAY [label="Süre doldu (önce Away)"];
+
+    // Manuel devreden çıkarma
+    ARMED_STAY -> DISARMED [label="PIN"];
+    ARMED_AWAY -> DISARMED [label="PIN"];
+}
 
