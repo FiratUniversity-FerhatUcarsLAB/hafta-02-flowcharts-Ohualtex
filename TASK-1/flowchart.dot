@@ -1,1 +1,51 @@
+digraph ATM {
+    rankdir=LR;
+    node [shape=rectangle, fontsize=10];
+
+    Start [label="Başlat\nKartınızı yerleştiriniz"];
+    EnterPIN [label="PIN gir"];
+    VerifyPIN [label="PIN doğru mu?", shape=diamond];
+    AttemptCheck [label="3. deneme?", shape=diamond];
+    BlockCard [label="Kart bloke\nSonlandır"];
+    ShowMenu [label="Menü\n1: Bakiye Sorgulama\n2: Para Çekme\n3: Çıkış"];
+    BalanceInquiry [label="Bakiye sorgulama\nBakiye göster"];
+    WithdrawOption [label="Para çekme seçildi"];
+    Exit [label="Çıkış seçildi\nKart iade"];
+    AskAmount [label="Tutar gir"];
+    ValidateAmount [label="Tutar >0 ve 10'un katı mı?", shape=diamond];
+    CheckBalance [label="Hesap bakiyesi yeterli mi?", shape=diamond];
+    CheckATM [label="ATM bakiyesi yeterli mi?", shape=diamond];
+    InsufficientBalance [label="Yetersiz bakiye\nTekrar tutar gir"];
+    InsufficientATM [label="ATM'de nakit yok\nTekrar tutar gir"];
+    Dispense [label="Bakiye ve ATM güncelle\nPara ve fiş ver"];
+    End [label="İşlem tamamlandı"];
+
+    // bağlantılar
+    Start -> EnterPIN;
+    EnterPIN -> VerifyPIN;
+    VerifyPIN -> ShowMenu [label="Evet"];
+    VerifyPIN -> AttemptCheck [label="Hayır"];
+    AttemptCheck -> EnterPIN [label="Hayır"];
+    AttemptCheck -> BlockCard [label="Evet"];
+    BlockCard -> End;
+
+    ShowMenu -> BalanceInquiry [label="1"];
+    ShowMenu -> WithdrawOption [label="2"];
+    ShowMenu -> Exit [label="3"];
+
+    BalanceInquiry -> End [label="Kart iade"];
+    Exit -> End;
+
+    WithdrawOption -> AskAmount;
+    AskAmount -> ValidateAmount;
+    ValidateAmount -> AskAmount [label="Hayır"];
+    ValidateAmount -> CheckBalance [label="Evet"];
+    CheckBalance -> InsufficientBalance [label="Hayır"];
+    InsufficientBalance -> AskAmount;
+    CheckBalance -> CheckATM [label="Evet"];
+    CheckATM -> InsufficientATM [label="Hayır"];
+    InsufficientATM -> AskAmount;
+    CheckATM -> Dispense [label="Evet"];
+    Dispense -> End;
+}
 
