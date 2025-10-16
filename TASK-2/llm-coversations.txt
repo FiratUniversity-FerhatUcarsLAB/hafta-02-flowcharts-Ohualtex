@@ -1,1 +1,396 @@
+Online Alışveriş Sepeti yalın pseudocode oluştur.
 
+Aşağıdaki yalın pseudocode, tipik bir “Online Alışveriş Sepeti” akışını basit fonksiyonlarla tanımlar. Veri yapıları ve kurallar minimum düzeyde tutuldu; dil/çatı bağımsızdır.
+
+// --- Veri Yapıları ---
+
+struct Urun {
+    id
+    ad
+    birimFiyat
+}
+
+struct SepetKalemi {
+    urunId
+    ad
+    birimFiyat
+    adet
+    araToplam   // birimFiyat * adet
+}
+
+struct Sepet {
+    kalemler: liste<SepetKalemi>
+    kuponKodu: string?  // opsiyonel
+    araToplam
+    indirimToplam
+    kargoUcreti
+    vergiToplam
+    genelToplam
+}
+
+// --- Yardımcı Hesaplar ---
+
+fonksiyon AraToplamHesapla(sepet):
+    toplam = 0
+    her kalem içinde sepet.kalemler:
+        kalem.araToplam = kalem.birimFiyat * kalem.adet
+        toplam += kalem.araToplam
+    döndür toplam
+
+fonksiyon IndirimHesapla(araToplam, kuponKodu):
+    eğer kuponKodu boş ise döndür 0
+    eğer kuponKodu geçerli değilse döndür 0
+    // örnek kural: %10 indirim
+    döndür araToplam * 0.10
+
+fonksiyon KargoHesapla(araToplam):
+    // örnek kural: 500 üzeri ücretsiz, aksi halde 49
+    eğer araToplam >= 500 döndür 0
+    aksi halde döndür 49
+
+fonksiyon VergiHesapla(vergilendirilebilirTutar):
+    // örnek KDV: %20
+    döndür vergilendirilebilirTutar * 0.20
+
+fonksiyon ToplamlariGuncelle(sepet):
+    sepet.araToplam = AraToplamHesapla(sepet)
+    sepet.indirimToplam = IndirimHesapla(sepet.araToplam, sepet.kuponKodu)
+    vergilendirilebilirTutar = maksimum(0, sepet.araToplam - sepet.indirimToplam)
+    sepet.kargoUcreti = KargoHesapla(vergilendirilebilirTutar)
+    sepet.vergiToplam = VergiHesapla(vergilendirilebilirTutar)
+    sepet.genelToplam = vergilendirilebilirTutar + sepet.kargoUcreti + sepet.vergiToplam
+    döndür sepet
+
+// --- Sepet İşlevleri ---
+
+fonksiyon SepetOlustur():
+    sepet = yeni Sepet
+    sepet.kalemler = boş liste
+    sepet.kuponKodu = boş
+    sepet.araToplam = 0
+    sepet.indirimToplam = 0
+    sepet.kargoUcreti = 0
+    sepet.vergiToplam = 0
+    sepet.genelToplam = 0
+    döndür sepet
+
+fonksiyon KalemBul(sepet, urunId):
+    her kalem içinde sepet.kalemler:
+        eğer kalem.urunId == urunId döndür kalem
+    döndür null
+
+fonksiyon SepeteEkle(sepet, urun, adet):
+    eğer adet <= 0 döndür sepet
+    kalem = KalemBul(sepet, urun.id)
+    eğer kalem != null:
+        kalem.adet += adet
+    aksi:
+        yeniKalem = yeni SepetKalemi
+        yeniKalem.urunId = urun.id
+        yeniKalem.ad = urun.ad
+        yeniKalem.birimFiyat = urun.birimFiyat
+        yeniKalem.adet = adet
+        ekle sepet.kalemler içine yeniKalem
+    ToplamlariGuncelle(sepet)
+    döndür sepet
+
+fonksiyon AdetGuncelle(sepet, urunId, yeniAdet):
+    kalem = KalemBul(sepet, urunId)
+    eğer kalem == null döndür sepet
+    eğer yeniAdet <= 0:
+        kaldır sepet.kalemler içinden kalem
+    aksi:
+        kalem.adet = yeniAdet
+    ToplamlariGuncelle(sepet)
+    döndür sepet
+
+fonksiyon SepettenCikar(sepet, urunId):
+    kalem = KalemBul(sepet, urunId)
+    eğer kalem != null:
+        kaldır sepet.kalemler içinden kalem
+    ToplamlariGuncelle(sepet)
+    döndür sepet
+
+fonksiyon KuponUygula(sepet, kuponKodu):
+    sepet.kuponKodu = kuponKodu
+    ToplamlariGuncelle(sepet)
+    döndür sepet
+
+fonksiyon SepetiGoruntule(sepet):
+    yaz "---- Sepet ----"
+    eğer sepet.kalemler boş ise:
+        yaz "Sepetiniz boş."
+        çık
+    her kalem içinde sepet.kalemler:
+        yaz kalem.ad, " x ", kalem.adet, " = ", kalem.araToplam
+    yaz "Ara Toplam: ", sepet.araToplam
+    yaz "İndirim: ", sepet.indirimToplam
+    yaz "Kargo: ", sepet.kargoUcreti
+    yaz "Vergi: ", sepet.vergiToplam
+    yaz "Genel Toplam: ", sepet.genelToplam
+
+// --- Ödeme / Checkout (sade akış) ---
+
+fonksiyon OdemeBaslat(sepet, odemeBilgileri, teslimatAdresi):
+    eğer sepet.kalemler boş ise:
+        yaz "Sepet boş, ödeme başlatılamaz."
+        döndür "HATA"
+    // Stok doğrulama (basit)
+    eğer StokYetersiz(sepet.kalemler):
+        yaz "Bazı ürünler stokta yok."
+        döndür "HATA"
+    // Tutarları tekrar hesapla ve kilitle
+    ToplamlariGuncelle(sepet)
+    // Ödeme sağlayıcıya yönlendir
+    odemeSonucu = OdemeSaglayiciIsle(odemeBilgileri, sepet.genelToplam)
+    eğer odemeSonucu == "BASARILI":
+        SiparisOlustur(sepet, teslimatAdresi)
+        SepetiTemizle(sepet)
+        yaz "Sipariş alındı."
+        döndür "BASARILI"
+    aksi:
+        yaz "Ödeme başarısız."
+        döndür "HATA"
+
+fonksiyon SepetiTemizle(sepet):
+    sepet.kalemler = boş liste
+    sepet.kuponKodu = boş
+    ToplamlariGuncelle(sepet)
+
+// --- Örnek Kullanım ---
+
+sepet = SepetOlustur()
+urunA = Urun{id:1, ad:"Kulaklık", birimFiyat:350}
+urunB = Urun{id:2, ad:"Klavye", birimFiyat:650}
+
+SepeteEkle(sepet, urunA, 1)
+SepeteEkle(sepet, urunB, 1)
+KuponUygula(sepet, "INDIRIM10")
+SepetiGoruntule(sepet)
+OdemeBaslat(sepet, odemeBilgileri, teslimatAdresi)
+
+
+Devamında bu iskeleti ihtiyaçlarına göre genişletebilirsin: varyant/seçenek (renk/boy) desteği, misafir/üye sepet senkronizasyonu, stok rezervasyonu, iade/iptal, çoklu kargo kuralı, kupon/hediye çeki kombinasyon kuralları, ya da “kampanyalı ürünlerde kargo ücretsiz” gibi iş kuralları. İstersen bunu belirli bir dile (ör. TypeScript, Java, Python) dönüştürüp minimal bir servis katmanıyla birlikte çıkarabilirim.
+
+dot diline çevir
+
+İstenen “Online Alışveriş Sepeti” akışını Graphviz’in DOT diline dönüştürerek bir çağrı grafiği oluşturabilirsiniz. Aşağıdaki DOT kodu, fonksiyonlar arası çağrı ilişkilerini yönlü bir grafik olarak göstermektedir:
+
+digraph SepetAkisi {
+    rankdir=LR;
+    node [shape=rectangle, style=rounded];
+
+    // Veri yapıları ve başlangıç fonksiyonu
+    SepetOlustur -> Sepet [label="yeni sepet döndürür"];
+
+    // Sepete ekleme ve güncelleme işlemleri
+    SepeteEkle -> KalemBul;
+    SepeteEkle -> ToplamlariGuncelle;
+
+    AdetGuncelle -> KalemBul;
+    AdetGuncelle -> ToplamlariGuncelle;
+
+    SepettenCikar -> KalemBul;
+    SepettenCikar -> ToplamlariGuncelle;
+
+    KuponUygula -> ToplamlariGuncelle;
+
+    // Toplamları güncelleme alt çağrıları
+    ToplamlariGuncelle -> AraToplamHesapla;
+    ToplamlariGuncelle -> IndirimHesapla;
+    ToplamlariGuncelle -> KargoHesapla;
+    ToplamlariGuncelle -> VergiHesapla;
+
+    // Ödeme akışı
+    OdemeBaslat -> StokYetersiz;
+    OdemeBaslat -> ToplamlariGuncelle;
+    OdemeBaslat -> OdemeSaglayiciIsle;
+    OdemeBaslat -> SiparisOlustur;
+    OdemeBaslat -> SepetiTemizle;
+
+    // Sepeti temizleme
+    SepetiTemizle -> ToplamlariGuncelle;
+
+    // Görüntüleme fonksiyonu (çağrı ilişkisi olmadığı için izole)
+    SepetiGoruntule;
+}
+
+Bu DOT betiğini bir Graphviz aracına vererek alışveriş sepeti akışını görsel bir diyagram olarak elde edebilirsiniz.
+
+sistemde stok durumu eksik.
+
+Evet, tam olarak. Şu anki akışta stok yalnızca ödeme sırasında “yetersiz” kontrolü ile var, fakat sepet yönetiminde stok takip edilmiyor. Bu hem kullanıcı deneyimi hem de sistemin güvenilirliği açısından eksikliktir.
+
+Stok yönetiminin eksik yönleri
+
+Sepete ekleme aşamasında stok kontrolü yok. Kullanıcı 10 adet ekleyebilir ama depoda belki 3 vardır.
+
+Adet güncellemede stok doğrulaması yapılmıyor. Kullanıcı 1’den 100’e çıkarabilir.
+
+Stok rezervasyonu yok. Bir kullanıcı sepete eklediğinde stok “geçici olarak tutulmalı” ki başkası aynı ürünü satın alırken çakışma yaşanmasın.
+
+Ödeme sonrası stok düşümü tanımlı değil. Sipariş kesinleştiğinde stoktan düşülmesi gerekiyor.
+
+Pseudocode’a eklenebilecek çözüm
+
+Aşağıdaki gibi yeni fonksiyonlar tanımlanabilir:
+
+fonksiyon StokKontrolEt(urunId, istenenAdet):
+    mevcut = DepoSorgu(urunId)
+    eğer mevcut >= istenenAdet:
+        döndür true
+    aksi:
+        döndür false
+
+fonksiyon SepeteEkle(sepet, urun, adet):
+    eğer StokKontrolEt(urun.id, adet) == false:
+        yaz "Yeterli stok yok."
+        döndür sepet
+    // önceki mantık burada devam eder
+
+Ödeme adımında da sipariş başarılı olduğunda:
+
+fonksiyon SiparisOlustur(sepet, teslimatAdresi):
+    her kalem içinde sepet.kalemler:
+        DepodanDus(kalem.urunId, kalem.adet)
+    // sipariş kaydını oluştur
+
+Böylece sistem:
+
+Sepete eklerken stok doğrular.
+
+Ödeme tamamlanınca stok düşer.
+
+Adet güncelleme veya çıkarma işlemlerinde stok yeniden hesaplanır.
+
+Bunu ister DOT diyagramına da yansıtalım, ister pseudocode’un genişletilmiş versiyonunu çıkaralım. Hangisini görmek istersin?
+
+İkisinide
+
+Harika, o zaman hem pseudocode hem de DOT diyagramı stok yönetimi eklenmiş haliyle paylaşayım.
+
+1. Stok Yönetimi Dahil Edilmiş Pseudocode
+
+// --- Stok Fonksiyonları ---
+
+fonksiyon StokKontrolEt(urunId, istenenAdet):
+    mevcut = DepoSorgu(urunId)
+    eğer mevcut >= istenenAdet:
+        döndür true
+    aksi:
+        döndür false
+
+fonksiyon StokRezervEt(urunId, adet):
+    // Kullanıcının sepete eklediği ürünleri geçici rezerve eder
+    DepoRezervasyon(urunId, adet)
+
+fonksiyon StokRezervIptal(urunId, adet):
+    // Sepetten çıkarma veya iptal durumunda rezervasyonu serbest bırakır
+    DepoRezervSerbestBirak(urunId, adet)
+
+fonksiyon StokDus(urunId, adet):
+    // Ödeme sonrası stoktan kalıcı olarak düşülür
+    DepodanDus(urunId, adet)
+
+// --- Sepete ekleme/güncelleme işlemleri ---
+
+fonksiyon SepeteEkle(sepet, urun, adet):
+    eğer StokKontrolEt(urun.id, adet) == false:
+        yaz "Yeterli stok yok."
+        döndür sepet
+    kalem = KalemBul(sepet, urun.id)
+    eğer kalem != null:
+        eğer StokKontrolEt(urun.id, kalem.adet + adet) == false:
+            yaz "Yeterli stok yok."
+            döndür sepet
+        kalem.adet += adet
+        StokRezervEt(urun.id, adet)
+    aksi:
+        yeniKalem = yeni SepetKalemi
+        yeniKalem.urunId = urun.id
+        yeniKalem.ad = urun.ad
+        yeniKalem.birimFiyat = urun.birimFiyat
+        yeniKalem.adet = adet
+        ekle sepet.kalemler içine yeniKalem
+        StokRezervEt(urun.id, adet)
+    ToplamlariGuncelle(sepet)
+    döndür sepet
+
+fonksiyon SepettenCikar(sepet, urunId):
+    kalem = KalemBul(sepet, urunId)
+    eğer kalem != null:
+        StokRezervIptal(kalem.urunId, kalem.adet)
+        kaldır sepet.kalemler içinden kalem
+    ToplamlariGuncelle(sepet)
+    döndür sepet
+
+// --- Ödeme akışı ---
+
+fonksiyon OdemeBaslat(sepet, odemeBilgileri, teslimatAdresi):
+    eğer sepet.kalemler boş ise döndür "HATA"
+    eğer StokYetersiz(sepet.kalemler) döndür "HATA"
+    ToplamlariGuncelle(sepet)
+    odemeSonucu = OdemeSaglayiciIsle(odemeBilgileri, sepet.genelToplam)
+    eğer odemeSonucu == "BASARILI":
+        SiparisOlustur(sepet, teslimatAdresi)
+        SepetiTemizle(sepet)
+        döndür "BASARILI"
+    aksi:
+        // başarısızsa rezervasyonlar iade edilmeli
+        her kalem içinde sepet.kalemler:
+            StokRezervIptal(kalem.urunId, kalem.adet)
+        döndür "HATA"
+
+fonksiyon SiparisOlustur(sepet, teslimatAdresi):
+    her kalem içinde sepet.kalemler:
+        StokDus(kalem.urunId, kalem.adet)
+    // sipariş kaydı oluşturulur
+
+2. Stok Fonksiyonlarını İçeren DOT Diyagramı
+
+digraph SepetAkisi {
+    rankdir=LR;
+    node [shape=rectangle, style=rounded];
+
+    // Temel işlemler
+    SepetOlustur -> Sepet [label="yeni sepet"];
+
+    SepeteEkle -> StokKontrolEt;
+    SepeteEkle -> StokRezervEt;
+    SepeteEkle -> KalemBul;
+    SepeteEkle -> ToplamlariGuncelle;
+
+    SepettenCikar -> KalemBul;
+    SepettenCikar -> StokRezervIptal;
+    SepettenCikar -> ToplamlariGuncelle;
+
+    AdetGuncelle -> KalemBul;
+    AdetGuncelle -> StokKontrolEt;
+    AdetGuncelle -> ToplamlariGuncelle;
+
+    KuponUygula -> ToplamlariGuncelle;
+
+    ToplamlariGuncelle -> AraToplamHesapla;
+    ToplamlariGuncelle -> IndirimHesapla;
+    ToplamlariGuncelle -> KargoHesapla;
+    ToplamlariGuncelle -> VergiHesapla;
+
+    // Ödeme akışı
+    OdemeBaslat -> StokYetersiz;
+    OdemeBaslat -> ToplamlariGuncelle;
+    OdemeBaslat -> OdemeSaglayiciIsle;
+    OdemeBaslat -> SiparisOlustur;
+    OdemeBaslat -> SepetiTemizle;
+    OdemeBaslat -> StokRezervIptal;
+
+    SiparisOlustur -> StokDus;
+
+    SepetiTemizle -> ToplamlariGuncelle;
+
+    // Görselleştirme
+    SepetiGoruntule;
+}
+
+Bu haliyle sistem artık sepete ekleme, güncelleme, çıkarma ve ödeme sürecinde stok yönetimi içeriyor.
+
+İstersen sonraki adımda bu grafiğin görsel çıktısını da üretebilirim. Onu da ister misin?
