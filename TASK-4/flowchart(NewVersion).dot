@@ -1,0 +1,71 @@
+digraph DersKayitGenişletilmis {
+    rankdir=TB;
+    node [shape=rectangle, style=rounded];
+
+    Start [label="Başla / Giriş Yap"];
+    Menu [label="İşlem Menüsü\n(EKLE / SİL / LİSTE / BİTİR)"];
+
+    // EKLE akışı
+    Ekle [label="EKLE İşlemi"];
+    Onkosul [label="Önkoşullar Tam mı?", shape=diamond];
+    Coreq [label="Eş-zorunlu ders de seçildi mi?", shape=diamond];
+    SaatCakis [label="Saat Çakışması Var mı?", shape=diamond];
+    Kontenjan [label="Kontenjan Uygun mu?", shape=diamond];
+    Kredi [label="Kredi Uygun mu?", shape=diamond];
+
+    KayitOK [label="Kayıt Başarılı", shape=oval];
+    Bekleme [label="Bekleme Listesi\n(öncelikli kuyruk)", shape=oval];
+    KrediFail [label="Kredi Sınırı Aşıldı", shape=oval];
+
+    // SİL akışı
+    Sil [label="SİL İşlemi"];
+    SilOK [label="Ders Silindi", shape=oval];
+    BekleyenYukselt [label="Bekleyenleri Yükselt\n(öncelik + kontrol)"];
+
+    // LİSTE akışı
+    Liste [label="LİSTE İşlemi"];
+    Goster [label="Mevcut Dersler ve Krediler", shape=oval];
+
+    // BİTİR
+    Bitir [label="BİTİR"];
+    Odeme [label="Ödeme Gerekli mi?", shape=diamond];
+    OdemeOK [label="Ödeme Başarılı", shape=oval];
+    OdemeFail [label="Ödeme Başarısız", shape=oval];
+    End [label="Kayıt Süreci Tamamlandı", shape=oval];
+
+    // Ana akış
+    Start -> Menu;
+    Menu -> Ekle [label="EKLE"];
+    Menu -> Sil [label="SİL"];
+    Menu -> Liste [label="LİSTE"];
+    Menu -> Bitir [label="BİTİR"];
+
+    Ekle -> Onkosul;
+    Onkosul -> Coreq [label="EVET"];
+    Onkosul -> Menu [label="HAYIR"];
+
+    Coreq -> SaatCakis [label="EVET"];
+    Coreq -> Menu [label="HAYIR"];
+
+    SaatCakis -> Kontenjan [label="HAYIR"];
+    SaatCakis -> Menu [label="EVET"];
+
+    Kontenjan -> Kredi [label="EVET"];
+    Kontenjan -> Bekleme [label="HAYIR"];
+
+    Kredi -> KayitOK [label="EVET"];
+    Kredi -> KrediFail [label="HAYIR"];
+
+    KayitOK -> Menu;
+    Bekleme -> Menu;
+    KrediFail -> Menu;
+
+    Sil -> SilOK -> BekleyenYukselt -> Menu;
+    Liste -> Goster -> Menu;
+
+    Bitir -> Odeme;
+    Odeme -> OdemeOK [label="EVET"];
+    Odeme -> OdemeFail [label="HAYIR"];
+    OdemeOK -> End;
+    OdemeFail -> End;
+}
