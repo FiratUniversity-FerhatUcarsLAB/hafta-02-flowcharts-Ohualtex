@@ -1,0 +1,74 @@
+// --- Stok Fonksiyonları ---
+
+fonksiyon StokKontrolEt(urunId, istenenAdet):
+    mevcut = DepoSorgu(urunId)
+    eğer mevcut >= istenenAdet:
+        döndür true
+    aksi:
+        döndür false
+
+fonksiyon StokRezervEt(urunId, adet):
+    // Kullanıcının sepete eklediği ürünleri geçici rezerve eder
+    DepoRezervasyon(urunId, adet)
+
+fonksiyon StokRezervIptal(urunId, adet):
+    // Sepetten çıkarma veya iptal durumunda rezervasyonu serbest bırakır
+    DepoRezervSerbestBirak(urunId, adet)
+
+fonksiyon StokDus(urunId, adet):
+    // Ödeme sonrası stoktan kalıcı olarak düşülür
+    DepodanDus(urunId, adet)
+
+// --- Sepete ekleme/güncelleme işlemleri ---
+
+fonksiyon SepeteEkle(sepet, urun, adet):
+    eğer StokKontrolEt(urun.id, adet) == false:
+        yaz "Yeterli stok yok."
+        döndür sepet
+    kalem = KalemBul(sepet, urun.id)
+    eğer kalem != null:
+        eğer StokKontrolEt(urun.id, kalem.adet + adet) == false:
+            yaz "Yeterli stok yok."
+            döndür sepet
+        kalem.adet += adet
+        StokRezervEt(urun.id, adet)
+    aksi:
+        yeniKalem = yeni SepetKalemi
+        yeniKalem.urunId = urun.id
+        yeniKalem.ad = urun.ad
+        yeniKalem.birimFiyat = urun.birimFiyat
+        yeniKalem.adet = adet
+        ekle sepet.kalemler içine yeniKalem
+        StokRezervEt(urun.id, adet)
+    ToplamlariGuncelle(sepet)
+    döndür sepet
+
+fonksiyon SepettenCikar(sepet, urunId):
+    kalem = KalemBul(sepet, urunId)
+    eğer kalem != null:
+        StokRezervIptal(kalem.urunId, kalem.adet)
+        kaldır sepet.kalemler içinden kalem
+    ToplamlariGuncelle(sepet)
+    döndür sepet
+
+// --- Ödeme akışı ---
+
+fonksiyon OdemeBaslat(sepet, odemeBilgileri, teslimatAdresi):
+    eğer sepet.kalemler boş ise döndür "HATA"
+    eğer StokYetersiz(sepet.kalemler) döndür "HATA"
+    ToplamlariGuncelle(sepet)
+    odemeSonucu = OdemeSaglayiciIsle(odemeBilgileri, sepet.genelToplam)
+    eğer odemeSonucu == "BASARILI":
+        SiparisOlustur(sepet, teslimatAdresi)
+        SepetiTemizle(sepet)
+        döndür "BASARILI"
+    aksi:
+        // başarısızsa rezervasyonlar iade edilmeli
+        her kalem içinde sepet.kalemler:
+            StokRezervIptal(kalem.urunId, kalem.adet)
+        döndür "HATA"
+
+fonksiyon SiparisOlustur(sepet, teslimatAdresi):
+    her kalem içinde sepet.kalemler:
+        StokDus(kalem.urunId, kalem.adet)
+    // sipariş kaydı oluşturulur
